@@ -25,7 +25,7 @@ class NotesService {
             throw new InvariantError('Catatan gagal ditambahkan');
         }
        
-          return result.rows[0].id;
+        return result.rows[0].id;
         }
 
     async getNotes() {
