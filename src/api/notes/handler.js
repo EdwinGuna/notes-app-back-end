@@ -1,5 +1,3 @@
-//const NotesService = require('./NotesService');
-
 const ClientError = require("../../exceptions/ClientError");
 
 class NotesHandler {
@@ -58,7 +56,6 @@ class NotesHandler {
                 notes,
             },
         };
-
     }
 
     async getNoteByIdHandler(request, h) {
@@ -71,7 +68,6 @@ class NotesHandler {
                     note,
                 },
             };
-            
         } catch (error) {
             if (error instanceof ClientError) {
                 const response = h.response({
@@ -89,7 +85,6 @@ class NotesHandler {
               response.code(500);
               console.error(error);
               return response;
-
         }
     }
 
