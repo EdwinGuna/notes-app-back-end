@@ -1,16 +1,32 @@
 require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
-const notes = require('./api/notes');
-const NotesService = require('./services/postgres/NotesService')
-const NotesValidator = require('./validator/notes/index');
+const Jwt = require('@hapi/jwt');
+
 const users = require('./api/users');
 const UsersService = require('./services/postgres/UsersService');
 const UsersValidator = require('./validator/users/index');
 
+const authentications = require('./api/authentications');
+const AuthenticationsService = require('./services/postgres/AuthenticationsService');
+const TokenManager = require('./tokenize/TokenManager');
+const AuthenticationsValidator = require('./validator/authentications/index');
+
+const notes = require('./api/notes');
+const NotesService = require('./services/postgres/NotesService')
+const NotesValidator = require('./validator/notes/index');
+
+const collaborations = require('./api/collaborations');
+const CollaborationsService = require('./services/postgres/CollaborationsService');
+const CollaborationsValidator = require('./validator/collaborations/index');
+
+
 const init = async () => {
-  const notesService = new NotesService();
+  const collaborationsService = new CollaborationsService();
+  const notesService = new NotesService(collaborationsService);
   const usersService = new UsersService();
+  const authenticationsService = new AuthenticationsService();
+  
   const server = Hapi.server(
   {
     port: process.env.PORT,
@@ -23,9 +39,39 @@ const init = async () => {
     
   });
 
+  await server.register([
+    {
+      plugin: Jwt,
+    },
+  ]);
+
+  // mendefinisikan strategy autentikasi jwt
+  server.auth.strategy('notesapp_jwt', 'jwt', {
+    keys: process.env.ACCESS_TOKEN_KEY,
+    verify: {
+      aud: false,
+      iss: false,
+      sub: false,
+      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+    },
+    validate: (artifacts) => ({
+      isValid: true,
+      credentials: {
+        id: artifacts.decoded.payload.id,
+      },
+    }),
+  });
+
   //server.route(routes);
   await server.register(
     [
+      {
+        plugin: users,
+        options: {
+          service: usersService,
+          validator: UsersValidator,
+        },
+      },
       {
         plugin: notes,
         options: {
@@ -34,10 +80,20 @@ const init = async () => {
         },
       },
       {
-        plugin: users,
+        plugin: authentications,
         options: {
-          service: usersService,
-          validator: UsersValidator,
+          authenticationsService,
+          usersService,
+          tokenManager: TokenManager,
+          validator: AuthenticationsValidator,
+        },
+      },
+      {
+        plugin: collaborations,
+        options: {
+          collaborationsService,
+          notesService,
+          validator: CollaborationsValidator,
         },
       },
     ]
